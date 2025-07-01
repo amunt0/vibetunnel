@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+
+# VibeTunnel Linux CLI - 'vt' command
+# Linux equivalent of the macOS 'vt' command for creating terminal sessions
+
+set -euo pipefail
+
+# Configuration
+CONFIG_DIR="$HOME/.config/vibetunnel"
+DEFAULT_HOST="127.0.0.1"
+DEFAULT_PORT=4020
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Get configuration
+get_config() {
+    local config_file="$CONFIG_DIR/config.json"
+    if [[ -f "$config_file" ]]; then
+        local host=$(jq -r '.host // "127.0.0.1"' "$config_file" 2>/dev/null || echo "$DEFAULT_HOST")
+        local port=$(jq -r '.port // 4020' "$config_file" 2>/dev/null || echo "$DEFAULT_PORT")
+        echo "$host:$port"
+    else
+        echo "$DEFAULT_HOST:$DEFAULT_PORT"
+    fi
+}
+
+# Check if VibeTunnel server is running
+check_server() {
+    local host_port=$(get_config)
+    local host=${host_port%:*}
+    local port=${host_port#*:}
+    
+    if ! curl -s "http://$host:$port/api/health" >/dev/null 2>&1; then
+        echo -e "${RED}Error:${NC} VibeTunnel server is not running on $host:$port"
+        echo -e "Start it with: ${BLUE}vibetunnel-linux start${NC}"
+        exit 1
+    fi
+}
+
+# Create a new terminal session
+create_session() {
+    local host_port=$(get_config)
+    local host=${host_port%:*}
+    local port=${host_port#*:}
+    
+    local title_mode="dynamic"
+    local shell_mode=false
+    local command_args=()
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --title-mode)
+                title_mode="$2"
+                shift 2
+                ;;
+            --shell)
+                shell_mode=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                command_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Prepare command
+    local command=""
+    if [[ "$shell_mode" == true ]]; then
+        command="$SHELL"
+    elif [[ ${#command_args[@]} -gt 0 ]]; then
+        command="${command_args[*]}"
+    else
+        command="$SHELL"
+    fi
+    
+    # Prepare session data
+    local session_data=$(jq -n \
+        --arg cmd "$command" \
+        --arg title_mode "$title_mode" \
+        --arg cwd "$PWD" \
+        '{
+            command: $cmd,
+            titleMode: $title_mode,
+            cwd: $cwd,
+            env: {}
+        }')
+    
+    # Create session
+    echo -e "${BLUE}Creating terminal session...${NC}"
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$session_data" \
+        "http://$host:$port/api/sessions" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && [[ -n "$response" ]]; then
+        local session_id=$(echo "$response" | jq -r '.id // empty' 2>/dev/null)
+        if [[ -n "$session_id" ]]; then
+            echo -e "${GREEN}Session created successfully!${NC}"
+            echo -e "Session ID: ${YELLOW}$session_id${NC}"
+            echo -e "Dashboard: ${BLUE}http://$host:$port${NC}"
+            echo -e "Direct link: ${BLUE}http://$host:$port/session/$session_id${NC}"
+            
+            # Try to open in browser if available
+            if command -v xdg-open >/dev/null 2>&1; then
+                echo -e "\n${BLUE}Opening in browser...${NC}"
+                xdg-open "http://$host:$port/session/$session_id" >/dev/null 2>&1 &
+            elif command -v firefox >/dev/null 2>&1; then
+                echo -e "\n${BLUE}Opening in Firefox...${NC}"
+                firefox "http://$host:$port/session/$session_id" >/dev/null 2>&1 &
+            elif command -v chromium >/dev/null 2>&1; then
+                echo -e "\n${BLUE}Opening in Chromium...${NC}"
+                chromium "http://$host:$port/session/$session_id" >/dev/null 2>&1 &
+            elif command -v google-chrome >/dev/null 2>&1; then
+                echo -e "\n${BLUE}Opening in Chrome...${NC}"
+                google-chrome "http://$host:$port/session/$session_id" >/dev/null 2>&1 &
+            else
+                echo -e "\n${YELLOW}Manual browser opening required${NC}"
+                echo -e "Please open: ${BLUE}http://$host:$port/session/$session_id${NC}"
+            fi
+        else
+            echo -e "${RED}Error:${NC} Failed to parse session ID from response"
+            echo "Response: $response"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Error:${NC} Failed to create session"
+        echo -e "Make sure VibeTunnel server is running: ${BLUE}vibetunnel-linux status${NC}"
+        exit 1
+    fi
+}
+
+# List active sessions
+list_sessions() {
+    local host_port=$(get_config)
+    local host=${host_port%:*}
+    local port=${host_port#*:}
+    
+    echo -e "${BLUE}Active VibeTunnel sessions:${NC}"
+    
+    local sessions=$(curl -s "http://$host:$port/api/sessions" 2>/dev/null)
+    if [[ $? -eq 0 ]] && [[ -n "$sessions" ]]; then
+        local count=$(echo "$sessions" | jq length 2>/dev/null || echo "0")
+        
+        if [[ "$count" -eq 0 ]]; then
+            echo -e "${YELLOW}No active sessions${NC}"
+        else
+            echo "$sessions" | jq -r '.[] | "\(.id) - \(.command) (\(.status))"' 2>/dev/null || echo "Failed to parse sessions"
+        fi
+    else
+        echo -e "${RED}Error:${NC} Failed to fetch sessions"
+        exit 1
+    fi
+}
+
+# Show help
+show_help() {
+    cat << EOF
+VibeTunnel Linux CLI - Create and manage terminal sessions in your browser
+
+USAGE:
+    vt [OPTIONS] [COMMAND...]
+
+OPTIONS:
+    --shell                 Start an interactive shell session
+    --title-mode MODE       Set title mode (dynamic, static, filter, none)
+    --help, -h              Show this help message
+
+ARGUMENTS:
+    COMMAND...              Command to run in the terminal session
+
+EXAMPLES:
+    vt --shell              # Start interactive shell
+    vt npm run dev          # Run npm dev server
+    vt python app.py        # Run Python application
+    vt --title-mode static vim file.txt   # Edit file with static title
+    vt htop                 # Monitor system resources
+
+TITLE MODES:
+    dynamic (default)       Show directory, command, and real-time activity
+    static                  Show directory and command only
+    filter                  Block application title changes
+    none                    No title management
+
+MANAGEMENT:
+    vt --list               List active sessions
+    vibetunnel-linux status # Check server status
+    vibetunnel-linux logs   # View server logs
+
+Once created, sessions are accessible via:
+    Dashboard: http://localhost:4020
+    Direct: http://localhost:4020/session/[SESSION_ID]
+EOF
+}
+
+# Main function
+main() {
+    # Check for special commands first
+    case "${1:-}" in
+        --list)
+            check_server
+            list_sessions
+            return 0
+            ;;
+        --help|-h)
+            show_help
+            return 0
+            ;;
+    esac
+    
+    # Check dependencies
+    if ! command -v curl >/dev/null 2>&1; then
+        echo -e "${RED}Error:${NC} curl is required but not installed"
+        echo "Install with: sudo apt install curl"
+        exit 1
+    fi
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}Error:${NC} jq is required but not installed"
+        echo "Install with: sudo apt install jq"
+        exit 1
+    fi
+    
+    # Check if server is running
+    check_server
+    
+    # Create session
+    create_session "$@"
+}
+
+# Run main function
+main "$@"

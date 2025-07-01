@@ -3,11 +3,12 @@
 
 # VibeTunnel
 
-**Turn any browser into your Mac terminal.** VibeTunnel proxies your terminals right into the browser, so you can vibe-code anywhere.
+**Turn any browser into your terminal.** VibeTunnel proxies your terminals right into the browser, so you can vibe-code anywhere from any device.
 
 [![Download](https://img.shields.io/badge/Download-macOS-blue)](https://github.com/amantus-ai/vibetunnel/releases/latest)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![macOS 14.0+](https://img.shields.io/badge/macOS-14.0+-red)](https://www.apple.com/macos/)
+[![Linux](https://img.shields.io/badge/Linux-Ubuntu%2020.04%2B-orange)](https://ubuntu.com/)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-Required-orange)](https://support.apple.com/en-us/HT211814)
 [![Support us on Polar](https://img.shields.io/badge/Support%20us-on%20Polar-purple)](https://vibetunnel.sh/#support)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/amantus-ai/vibetunnel)
@@ -18,9 +19,14 @@ Ever wanted to check on your AI agents while you're away? Need to monitor that l
 
 ## Quick Start
 
-### Requirements
+### Platform Support
 
-**VibeTunnel requires an Apple Silicon Mac (M1+).** Intel Macs are not supported.
+VibeTunnel works on both macOS and Linux systems:
+
+- **macOS**: Requires Apple Silicon Mac (M1+). Intel Macs are not supported.
+- **Linux**: Ubuntu 20.04+, Fedora 35+, Arch Linux, or similar distributions
+
+## macOS Installation
 
 ### 1. Download & Install
 
@@ -55,32 +61,222 @@ vt --shell
 
 Visit [http://localhost:4020](http://localhost:4020) to see all your terminal sessions.
 
+## Linux Installation
+
+### Prerequisites
+
+- **Linux Distribution**: Ubuntu 20.04+, Fedora 35+, Arch Linux, or similar
+- **Node.js**: Version 18 or higher
+- **pnpm**: Package manager
+- **System packages**: `curl`, `jq` (for CLI functionality)
+
+### Option 1: Build from Source (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/amantus-ai/vibetunnel.git
+cd vibetunnel
+
+# Install dependencies
+sudo apt update
+sudo apt install nodejs npm curl jq build-essential libpam0g-dev  # Ubuntu/Debian
+# OR
+sudo dnf install nodejs npm curl jq gcc-c++ make pam-devel        # Fedora
+# OR  
+sudo pacman -S nodejs npm curl jq base-devel pam                  # Arch Linux
+
+# Install pnpm
+npm install -g pnpm
+
+# Optional: Install Bun for better performance
+curl -fsSL https://bun.sh/install | bash
+
+# Build for Linux
+cd linux
+./build-linux.sh
+
+# Install
+cd dist
+sudo ./install.sh    # System-wide install
+# OR
+./install.sh         # User install to ~/.local
+```
+
+### Option 2: Quick Setup (Development)
+
+```bash
+# Install system dependencies
+sudo apt install nodejs npm curl jq libpam0g-dev  # Ubuntu/Debian
+
+# Install pnpm and build web components
+npm install -g pnpm
+cd web
+pnpm install
+pnpm run build
+
+# Use development launcher
+cd ../linux
+./vibetunnel-linux start
+```
+
+### Linux Usage
+
+#### Basic Commands
+
+```bash
+# Start VibeTunnel server
+vibetunnel-linux start                    # With authentication (secure)
+vibetunnel-linux --no-auth start          # Without authentication (development)
+
+# Check status
+vibetunnel-linux status
+
+# Stop server
+vibetunnel-linux stop
+
+# Restart server
+vibetunnel-linux restart
+
+# View logs
+vibetunnel-linux logs           # Recent logs
+vibetunnel-linux logs -f        # Follow logs in real-time
+```
+
+#### Create Terminal Sessions
+
+```bash
+# Interactive shell
+vt --shell
+
+# Run specific commands
+vt npm run dev               # Run development server
+vt python app.py             # Run Python application
+vt htop                      # System monitor
+vt --title-mode static vim file.txt   # Edit file with static title
+
+# Control terminal titles (same as macOS)
+vt --title-mode dynamic python app.py  # Shows path, command, and activity
+vt --title-mode static npm run dev     # Shows path and command only
+vt --title-mode filter vim             # Blocks application title changes
+```
+
+#### Auto-Start on Boot (systemd)
+
+```bash
+# Install systemd service
+vibetunnel-linux install-service
+
+# Enable auto-start on boot
+systemctl --user enable vibetunnel.service
+
+# Start service immediately
+systemctl --user start vibetunnel.service
+
+# Check service status
+systemctl --user status vibetunnel.service
+
+# View service logs
+journalctl --user -u vibetunnel.service -f
+
+# Stop service
+systemctl --user stop vibetunnel.service
+
+# Disable auto-start
+systemctl --user disable vibetunnel.service
+```
+
+#### Configuration Management
+
+```bash
+# View current configuration
+vibetunnel-linux config
+
+# Or use the config manager directly
+./config-manager.js show
+
+# Change settings
+./config-manager.js set port 8080
+./config-manager.js set auth.type password
+
+# Manage encrypted secrets
+./config-manager.js set-secret dashboardPassword mypassword
+./config-manager.js set-secret ngrokAuthToken your-token
+
+# Reset configuration
+./config-manager.js reset
+./config-manager.js init
+```
+
+#### Authentication Options
+
+**System Authentication (Default - Recommended)**:
+```bash
+vibetunnel-linux start
+# Uses your Linux username/password via PAM
+```
+
+**No Authentication (Development/Testing)**:
+```bash
+vibetunnel-linux --no-auth start
+# Anyone on localhost can access (NOT for production)
+```
+
+**Dashboard Password**:
+```bash
+./config-manager.js set auth.type password
+./config-manager.js set-secret dashboardPassword your-secure-password
+vibetunnel-linux restart
+```
+
+**SSH Key Authentication**:
+```bash
+./config-manager.js set auth.type ssh-key
+vibetunnel-linux restart
+# Uses your ~/.ssh/authorized_keys
+```
+
+### Linux Dashboard Access
+
+Visit [http://localhost:4020](http://localhost:4020) to access your terminal sessions.
+
+- **With Authentication**: Login with your credentials
+- **Without Authentication** (`--no-auth`): Direct access
+
 ## Features
 
-- **🌐 Browser-Based Access** - Control your Mac terminal from any device with a web browser
+- **🌐 Browser-Based Access** - Control your terminal from any device with a web browser
 - **🚀 Zero Configuration** - No SSH keys, no port forwarding, no complexity
 - **🤖 AI Agent Friendly** - Perfect for monitoring Claude Code, ChatGPT, or any terminal-based AI tools
 - **📊 Dynamic Terminal Titles** - Real-time activity tracking shows what's happening in each session
-- **🔒 Secure by Design** - Password protection, localhost-only mode, or secure tunneling via Tailscale/ngrok
+- **🔒 Secure by Design** - Multiple authentication options: PAM, SSH keys, passwords, or no-auth for development
 - **📱 Mobile Ready** - Native iOS app and responsive web interface for phones and tablets
 - **🎬 Session Recording** - All sessions recorded in asciinema format for later playback
 - **⚡ High Performance** - Powered by Bun runtime for blazing-fast JavaScript execution
 - **🍎 Apple Silicon Native** - Optimized for M1/M2/M3 Macs with ARM64-only binaries
+- **🐧 Linux Support** - Full Linux port with systemd integration and CLI management
 - **🐚 Shell Alias Support** - Your custom aliases and shell functions work automatically
+- **🔄 Cross-Platform** - Same core functionality across macOS and Linux
 
 > **Note**: The iOS app and Tauri-based components are still work in progress and not recommended for production use yet.
 
 ## Architecture
 
-VibeTunnel consists of three main components:
+VibeTunnel is designed as a cross-platform system with shared core components:
 
-1. **macOS Menu Bar App** - Native Swift application that manages the server lifecycle
-2. **Node.js/Bun Server** - High-performance TypeScript server handling terminal sessions
-3. **Web Frontend** - Modern web interface using Lit components and xterm.js
+### Core Components (Shared)
+1. **Node.js/Bun Server** - High-performance TypeScript server handling terminal sessions
+2. **Web Frontend** - Modern web interface using Lit components and xterm.js
+3. **Terminal Engine** - PTY management and session multiplexing
 
-The server runs as a standalone Bun executable with embedded Node.js modules, providing excellent performance and minimal resource usage.
+### Platform-Specific Components
+- **macOS**: Native Swift menu bar application (`mac/`)
+- **Linux**: CLI launcher with systemd integration (`linux/`)
+
+The server runs as a standalone executable with embedded Node.js modules, providing excellent performance and minimal resource usage across both platforms.
 
 ## Remote Access Options
+
+All remote access options work on both macOS and Linux systems.
 
 ### Option 1: Tailscale (Recommended)
 
@@ -89,13 +285,17 @@ The server runs as a standalone Bun executable with embedded Node.js modules, pr
 **How it works**: Tailscale creates an encrypted WireGuard tunnel between your devices, allowing them to communicate as if they were on the same local network, regardless of their physical location.
 
 **Setup Guide**:
-1. Install Tailscale on your Mac: [Download from Mac App Store](https://apps.apple.com/us/app/tailscale/id1475387142) or [Direct Download](https://tailscale.com/download/macos)
+1. Install Tailscale on your server machine:
+   - **macOS**: [Download from Mac App Store](https://apps.apple.com/us/app/tailscale/id1475387142) or [Direct Download](https://tailscale.com/download/macos)
+   - **Linux**: `curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up`
 2. Install Tailscale on your remote device:
    - **iOS**: [Download from App Store](https://apps.apple.com/us/app/tailscale/id1470499037)
    - **Android**: [Download from Google Play](https://play.google.com/store/apps/details?id=com.tailscale.ipn)
    - **Other platforms**: [All Downloads](https://tailscale.com/download)
 3. Sign in to both devices with the same account
-4. Find your Mac's Tailscale hostname in the Tailscale menu bar app (e.g., `my-mac.tailnet-name.ts.net`)
+4. Find your server's Tailscale hostname:
+   - **macOS**: Check the Tailscale menu bar app
+   - **Linux**: Run `tailscale ip -4` or check `tailscale status`
 5. Access VibeTunnel at `http://[your-tailscale-hostname]:4020`
 
 **Benefits**:
@@ -113,9 +313,13 @@ The server runs as a standalone Bun executable with embedded Node.js modules, pr
 **Setup Guide**:
 1. Create a free ngrok account: [Sign up for ngrok](https://dashboard.ngrok.com/signup)
 2. Copy your auth token from the [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
-3. Add the token in VibeTunnel settings (Settings → Remote Access → ngrok)
-4. Enable ngrok tunneling in VibeTunnel
-5. Share the generated `https://[random].ngrok-free.app` URL
+3. Configure the token in VibeTunnel:
+   - **macOS**: Add in VibeTunnel settings (Settings → Remote Access → ngrok)
+   - **Linux**: `./config-manager.js set-secret ngrokAuthToken your-token`
+4. Enable ngrok tunneling:
+   - **macOS**: Toggle in VibeTunnel settings
+   - **Linux**: `./config-manager.js set tunneling.ngrok.enabled true`
+5. Restart VibeTunnel to get your `https://[random].ngrok-free.app` URL
 
 **Benefits**:
 - Public HTTPS URL with SSL certificate
@@ -126,9 +330,13 @@ The server runs as a standalone Bun executable with embedded Node.js modules, pr
 **Note**: Free ngrok URLs change each time you restart the tunnel. Consider a paid plan for persistent URLs.
 
 ### Option 3: Local Network
-1. Set a dashboard password in settings
-2. Switch to "Network" mode
-3. Access via `http://[your-mac-ip]:4020`
+1. Set a dashboard password:
+   - **macOS**: Configure in VibeTunnel settings
+   - **Linux**: `./config-manager.js set-secret dashboardPassword yourpassword`
+2. Enable network access:
+   - **macOS**: Switch to "Network" mode in settings
+   - **Linux**: `./config-manager.js set host 0.0.0.0`
+3. Access via `http://[your-server-ip]:4020`
 
 ### Option 4: Cloudflare Quick Tunnel
 1. Install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
@@ -159,13 +367,111 @@ Dynamic mode includes real-time activity detection:
 - Shows `•` when there's terminal output within 5 seconds
 - Claude commands show specific status (Crafting, Transitioning, etc.)
 - Extensible system for future app-specific detectors
+
+## Linux-Specific Features
+
+VibeTunnel's Linux port provides equivalent functionality to the macOS version with Linux-native integrations:
+
+### Linux vs macOS Feature Comparison
+
+| Feature | macOS | Linux |
+|---------|--------|--------|
+| **GUI** | Native SwiftUI menu bar app | CLI-based launcher |
+| **Authentication** | Keychain + PAM | PAM + SSH keys + encrypted file storage |
+| **Auto-start** | LaunchAgent | systemd user service |
+| **Configuration** | macOS preferences | JSON files in `~/.config/vibetunnel/` |
+| **System Integration** | Menu bar, notifications | Command-line interface |
+| **Process Management** | macOS APIs | systemd integration |
+| **Remote Access** | ✅ Tailscale, ngrok, local network | ✅ Tailscale, ngrok, local network |
+| **Terminal Engine** | ✅ Same Node.js/Bun server | ✅ Same Node.js/Bun server |
+| **Web Interface** | ✅ Identical browser experience | ✅ Identical browser experience |
+
+### Linux File Structure
+
+```
+~/.config/vibetunnel/          # User configuration
+├── config.json               # Main configuration  
+├── secrets.json              # Encrypted secrets (passwords, tokens)
+├── vibetunnel.log            # Server logs
+└── recordings/               # Session recordings
+
+/opt/vibetunnel/              # System installation (optional)
+├── vibetunnel-server         # Server executable wrapper
+├── vibetunnel-linux         # Linux launcher
+├── vt                       # VT command
+├── config-manager.js        # Configuration manager
+└── public/                  # Web frontend assets
+```
+
+### Linux Authentication Methods
+
+1. **System PAM Authentication** (Default - Most Secure)
+   - Uses your Linux user account credentials
+   - Integrates with system authentication (LDAP, Active Directory, etc.)
+   - Works with existing user management
+
+2. **SSH Key Authentication**
+   - Uses your `~/.ssh/authorized_keys`
+   - Perfect for teams with existing SSH key infrastructure
+   - No password required
+
+3. **Dashboard Password**
+   - Simple password-based authentication
+   - Stored encrypted in `secrets.json`
+   - Good for shared systems
+
+4. **No Authentication** (Development only)
+   - Use `--no-auth` flag for testing
+   - **Warning**: Never use in production or on networks
+
+### Troubleshooting Linux
+
+**Common Issues**:
+
+```bash
+# Port already in use
+sudo netstat -tlnp | grep 4020
+vibetunnel-linux config set port 8080
+
+# Permission denied
+chmod 700 ~/.config/vibetunnel/
+chmod 600 ~/.config/vibetunnel/*.json
+
+# Authentication not working
+pamtester login $(whoami) authenticate  # Test PAM
+cat ~/.ssh/authorized_keys              # Check SSH keys
+
+# Native modules missing
+sudo apt install build-essential python3-dev libpam0g-dev
+cd web && pnpm run postinstall
+
+# Reset configuration
+./config-manager.js reset
+./config-manager.js init
+```
+
+**Debug Mode**:
+```bash
+export VIBETUNNEL_DEBUG=1
+vibetunnel-linux start
+tail -f ~/.config/vibetunnel/vibetunnel.log
+```
+
 ## Building from Source
 
 ### Prerequisites
+
+**For macOS**:
 - macOS 14.0+ (Sonoma) on Apple Silicon (M1/M2/M3)
 - Xcode 16.0+
 - Node.js 20+
 - Bun runtime
+
+**For Linux**:
+- Ubuntu 20.04+, Fedora 35+, Arch Linux, or similar
+- Node.js 18+
+- pnpm package manager
+- Build tools: `build-essential`, `libpam0g-dev`
 
 ### Build Steps
 
@@ -174,9 +480,18 @@ Dynamic mode includes real-time activity detection:
 git clone https://github.com/amantus-ai/vibetunnel.git
 cd vibetunnel
 
+# Build the web server (required for both platforms)
+cd web
+pnpm install
+pnpm run build
+cd ..
+```
+
+#### For macOS App
+
+```bash
 # Set up code signing (required for macOS/iOS development)
 # Create Local.xcconfig files with your Apple Developer Team ID
-# Note: These files must be in the same directory as Shared.xcconfig
 cat > mac/VibeTunnel/Local.xcconfig << EOF
 // Local Development Configuration
 // DO NOT commit this file to version control
@@ -191,19 +506,30 @@ DEVELOPMENT_TEAM = YOUR_TEAM_ID
 CODE_SIGN_STYLE = Automatic
 EOF
 
-# Build the web server
-cd web
-pnpm install
-pnpm run build
-
-# Optional: Build with custom Node.js for smaller binary (46% size reduction)
-# export VIBETUNNEL_USE_CUSTOM_NODE=YES
-# node build-custom-node.js  # Build optimized Node.js (one-time, ~20 min)
-# pnpm run build              # Will use custom Node.js automatically
-
 # Build the macOS app
-cd ../mac
+cd mac
 ./scripts/build.sh --configuration Release
+```
+
+#### For Linux Package
+
+```bash
+# Install Linux dependencies
+sudo apt install build-essential libpam0g-dev  # Ubuntu/Debian
+# OR
+sudo dnf install gcc-c++ make pam-devel       # Fedora
+# OR
+sudo pacman -S base-devel pam                  # Arch Linux
+
+# Build Linux package
+cd linux
+./build-linux.sh
+
+# Install
+cd dist
+sudo ./install.sh    # System-wide install
+# OR
+./install.sh         # User install to ~/.local
 ```
 
 ### Custom Node.js Builds
@@ -229,6 +555,9 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](docs/CO
 
 ### Key Files
 - **macOS App**: `mac/VibeTunnel/VibeTunnelApp.swift`
+- **Linux Launcher**: `linux/vibetunnel-linux`
+- **Linux VT Command**: `linux/vt`
+- **Linux Config Manager**: `linux/config-manager.js`
 - **Server**: `web/src/server/` (TypeScript/Node.js)
 - **Web UI**: `web/src/client/` (Lit/TypeScript)
 - **iOS App**: `ios/VibeTunnel/`
@@ -276,6 +605,7 @@ Debug logs are written to `~/.vibetunnel/log.txt`.
 - [Architecture](docs/architecture.md) - System design overview
 - [Build System](docs/build-system.md) - Build process details
 - [Push Notifications](docs/push-notification.md) - How web push notifications work
+- [Linux README](linux/README-LINUX.md) - Comprehensive Linux-specific documentation
 
 ## macOS Permissions
 
@@ -320,4 +650,7 @@ VibeTunnel is open source software licensed under the MIT License. See [LICENSE]
 
 ---
 
-**Ready to vibe?** [Download VibeTunnel](https://github.com/amantus-ai/vibetunnel/releases/latest) and start tunneling!
+**Ready to vibe?** 
+
+- **macOS**: [Download VibeTunnel](https://github.com/amantus-ai/vibetunnel/releases/latest) and start tunneling!
+- **Linux**: Clone the repo and run `./linux/build-linux.sh` to get started!

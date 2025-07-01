@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+
+# VibeTunnel Server Executable
+# This script finds and runs the VibeTunnel server with the right runtime
+
+set -euo pipefail
+
+# Find the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVER_DIR="$SCRIPT_DIR"
+
+# Configuration
+DEFAULT_PORT=4020
+DEFAULT_HOST="127.0.0.1"
+
+# Parse command line arguments
+PORT="$DEFAULT_PORT"
+HOST="$DEFAULT_HOST"
+CONFIG_FILE=""
+DEBUG=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --port|-p)
+            PORT="$2"
+            shift 2
+            ;;
+        --host|-h)
+            HOST="$2"
+            shift 2
+            ;;
+        --config|-c)
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        --debug|-d)
+            DEBUG=true
+            shift
+            ;;
+        --help)
+            cat << HELP
+VibeTunnel Server
+
+Usage: vibetunnel-server [OPTIONS]
+
+Options:
+    --port, -p PORT         Port to listen on (default: 4020)
+    --host, -h HOST         Host to bind to (default: 127.0.0.1)
+    --config, -c FILE       Configuration file path
+    --debug, -d             Enable debug logging
+    --help                  Show this help message
+
+Environment Variables:
+    VIBETUNNEL_PORT         Default port
+    VIBETUNNEL_HOST         Default host
+    VIBETUNNEL_DEBUG        Enable debug mode
+HELP
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Override with environment variables
+PORT="${VIBETUNNEL_PORT:-$PORT}"
+HOST="${VIBETUNNEL_HOST:-$HOST}"
+if [[ "${VIBETUNNEL_DEBUG:-}" == "1" ]] || [[ "${VIBETUNNEL_DEBUG:-}" == "true" ]]; then
+    DEBUG=true
+fi
+
+# Export environment variables
+export VIBETUNNEL_PORT="$PORT"
+export VIBETUNNEL_HOST="$HOST"
+export VIBETUNNEL_STATIC_DIR="$SERVER_DIR/public"
+
+if [[ "$DEBUG" == true ]]; then
+    export VIBETUNNEL_DEBUG=1
+    echo "Debug mode enabled"
+    echo "Port: $PORT"
+    echo "Host: $HOST"
+    echo "Server dir: $SERVER_DIR"
+    echo "Static dir: $VIBETUNNEL_STATIC_DIR"
+fi
+
+# Use the working web distribution
+if [[ "$DEBUG" == true ]]; then
+    echo "Using VibeTunnel from web distribution"
+fi
+
+# Find the web directory relative to this script
+WEB_DIR="$(dirname "$SERVER_DIR")/../web"
+if [[ -f "$WEB_DIR/dist/vibetunnel-cli" ]]; then
+    # Check if no-auth mode is requested
+    if [[ "${VIBETUNNEL_NO_AUTH:-false}" == "true" ]]; then
+        if [[ "$DEBUG" == true ]]; then
+            echo "Starting with --no-auth flag"
+        fi
+        exec node "$WEB_DIR/dist/vibetunnel-cli" server --no-auth "$@"
+    else
+        exec node "$WEB_DIR/dist/vibetunnel-cli" server "$@"
+    fi
+else
+    echo "Error: Cannot find VibeTunnel web distribution"
+    echo "Expected at: $WEB_DIR/dist/vibetunnel-cli"
+    exit 1
+fi

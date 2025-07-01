@@ -4,10 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VibeTunnel is a macOS application that allows users to access their terminal sessions through any web browser. It consists of:
-- Native macOS app (Swift/SwiftUI) in `mac/`
-- iOS companion app in `ios/`
-- Web frontend (TypeScript/LitElement) and Node.js/Bun server for terminal session management in `web/`
+VibeTunnel is a cross-platform application that allows users to access their terminal sessions through any web browser. It consists of:
+- **Cross-platform web server** (TypeScript/Node.js/Bun) in `web/` - Core terminal multiplexing functionality
+- **Native macOS app** (Swift/SwiftUI) in `mac/` - macOS menu bar interface and system integration
+- **Linux port** in `linux/` - CLI-based launcher and Linux-specific components  
+- **iOS companion app** in `ios/` - Mobile terminal access (work in progress)
+
+**Platform Support:**
+- **macOS**: Full native app with menu bar integration (Apple Silicon M1+ required)
+- **Linux**: CLI launcher with systemd integration (Ubuntu 20.04+, Fedora 35+, Arch Linux)
+- **iOS**: Mobile companion app (work in progress)
 
 ## Critical Development Rules
 
@@ -54,6 +60,26 @@ In the `mac/` directory:
 ./scripts/create-dmg.sh             # Create installer
 ```
 
+## Linux Development Commands
+
+In the `linux/` directory:
+
+```bash
+# Build Linux package
+./build-linux.sh                     # Build complete Linux package
+
+# Development and testing
+./vibetunnel-linux start            # Start server
+./vibetunnel-linux status           # Check status
+./vibetunnel-linux stop             # Stop server
+./vt --shell                        # Create terminal session
+
+# Configuration management
+./config-manager.js init            # Initialize configuration
+./config-manager.js show            # Show configuration
+./config-manager.js set port 8080   # Set configuration values
+```
+
 ## Architecture Overview
 
 ### Terminal Sharing Protocol
@@ -65,21 +91,41 @@ In the `mac/` directory:
 4. **Resize**: `POST /api/sessions/:id/resize` (missing in some implementations)
 
 ### Key Entry Points
-- **Mac App**: `mac/VibeTunnel/VibeTunnelApp.swift`
+- **Cross-platform Web Server**: `web/src/server/server.ts`
 - **Web Frontend**: `web/src/client/app.ts`
-- **Server**: `web/src/server/server.ts`
-- **Process spawning and forwarding tool**:  `web/src/server/fwd.ts`
-- **Server Management**: `mac/VibeTunnel/Core/Services/ServerManager.swift`
+- **Process spawning and forwarding tool**: `web/src/server/fwd.ts`
+- **Mac App**: `mac/VibeTunnel/VibeTunnelApp.swift`
+- **macOS Server Management**: `mac/VibeTunnel/Core/Services/ServerManager.swift`
+- **Linux Launcher**: `linux/vibetunnel-linux`
+- **Linux VT Command**: `linux/vt`
+- **Linux Configuration**: `linux/config-manager.js`
 
 ## Testing
 
 - **Never run tests unless explicitly asked**
-- Mac tests: Swift Testing framework in `VibeTunnelTests/`
-- Web tests: Vitest in `web/src/test/`
+- **Web tests**: Vitest in `web/src/test/` (cross-platform)
+- **Mac tests**: Swift Testing framework in `VibeTunnelTests/`
+- **Linux testing**: Manual testing using `linux/vibetunnel-linux` and `linux/vt`
 
 ## Key Files Quick Reference
 
-- Architecture Details: `docs/ARCHITECTURE.md`
-- API Specifications: `docs/spec.md`
-- Server Implementation Guide: `web/spec.md`
-- Build Configuration: `web/package.json`, `mac/Package.swift`
+- **Architecture Details**: `docs/ARCHITECTURE.md`
+- **API Specifications**: `docs/spec.md`
+- **Server Implementation Guide**: `web/spec.md`
+- **Linux Documentation**: `linux/README-LINUX.md`
+- **Build Configuration**: `web/package.json`, `mac/Package.swift`, `linux/build-linux.sh`
+
+## Platform-Specific Notes
+
+### macOS Development
+- Requires Apple Silicon (M1+) and macOS 14.0+
+- Uses Swift 6.0 with SwiftUI for native interface
+- Keychain integration for secure storage
+- Menu bar application with system integration
+
+### Linux Development  
+- Supports Ubuntu 20.04+, Fedora 35+, Arch Linux
+- CLI-based launcher replaces macOS menu bar app
+- PAM authentication for system user accounts
+- Systemd integration for service management
+- Encrypted file storage replaces Keychain functionality
